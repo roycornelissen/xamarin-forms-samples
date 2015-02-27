@@ -49,15 +49,15 @@ namespace Xamarin.Forms
 		}
 
 		//http://forums.xamarin.com/discussion/17961/stacklayout-with-horizontal-orientation-how-to-wrap-vertically#latest
-//		protected override void OnPropertyChanged
-//		(string propertyName = null)
-//		{
-//			base.OnPropertyChanged(propertyName);
-//			if ((propertyName == WrapLayout.OrientationProperty.PropertyName) ||
-//				(propertyName == WrapLayout.SpacingProperty.PropertyName)) {
-//				this.OnSizeChanged();
-//			}
-//		}
+		//		protected override void OnPropertyChanged
+		//		(string propertyName = null)
+		//		{
+		//			base.OnPropertyChanged(propertyName);
+		//			if ((propertyName == WrapLayout.OrientationProperty.PropertyName) ||
+		//				(propertyName == WrapLayout.SpacingProperty.PropertyName)) {
+		//				this.OnSizeChanged();
+		//			}
+		//		}
 
 		/// <summary>
 		/// This method is called during the measure pass of a layout cycle to get the desired size of an element.
@@ -77,7 +77,6 @@ namespace Xamarin.Forms
 			return Orientation == StackOrientation.Vertical 
 				? DoVerticalMeasure(internalWidth, internalHeight) 
 					: DoHorizontalMeasure(internalWidth, internalHeight);
-
 		}
 
 		/// <summary>
@@ -104,7 +103,7 @@ namespace Xamarin.Forms
 				var newHeight = height + size.Request.Height + Spacing;
 				if (newHeight > heightConstraint) {
 					columnCount++;
-					heightUsed = Math.Max(height, heightUsed);
+					heightUsed = Math.Max (height, heightUsed) + Spacing;
 					height = size.Request.Height;
 				} else
 					height = newHeight;
@@ -114,7 +113,7 @@ namespace Xamarin.Forms
 			}
 
 			if (columnCount > 1) {
-				height = Math.Max(height, heightUsed);
+				height = Math.Max(height, heightUsed + Padding.Top + Padding.Bottom);
 				width *= columnCount;  // take max width
 			}
 
@@ -129,37 +128,42 @@ namespace Xamarin.Forms
 		/// <param name="heightConstraint">Height constraint.</param>
 		private SizeRequest DoHorizontalMeasure(double widthConstraint, double heightConstraint)
 		{
-			int rowCount = 1;
+			//int rowCount = 1;
 
 			double width = 0;
 			double height = 0;
 			double minWidth = 0;
 			double minHeight = 0;
+
 			double widthUsed = 0;
+			double heightUsed = 0;
+
+			double currentRowHeight = 0;
 
 			foreach (var item in Children)    
 			{
 				var size = item.GetSizeRequest(widthConstraint, heightConstraint);
-				height = Math.Max (height, size.Request.Height);
 
-				var newWidth = width + size.Request.Width + Spacing;
-				if (newWidth > widthConstraint) {
-					rowCount++;
-					widthUsed = Math.Max(width, widthUsed);
-					width = size.Request.Width;
-				} else
-					width = newWidth;
-
-				minHeight = Math.Max(minHeight, size.Minimum.Height);
+				minHeight = Math.Max (minHeight, size.Minimum.Height);
 				minWidth = Math.Max (minWidth, size.Minimum.Width);
+
+				var newWidth = width + size.Request.Width;
+				if (newWidth + Spacing >= widthConstraint) {
+					heightUsed += currentRowHeight;
+
+					currentRowHeight = size.Request.Height + Spacing;
+					widthUsed = Math.Max (width, widthUsed);
+					width = size.Request.Width + Spacing;
+				} else {
+					width = newWidth;
+					currentRowHeight = Math.Max(size.Request.Height + Spacing, currentRowHeight);
+				}
 			}
 
-			if (rowCount > 1) {
-				width = Math.Max(width, widthUsed);
-				height = (height + Spacing) * rowCount - Spacing; // via MitchMilam 
-			}
+			width = Math.Max(width, widthUsed);
+			height = Math.Round (heightUsed + currentRowHeight + Padding.Top + Padding.Bottom);
 
-			return new SizeRequest(new Size(width, height), new Size(minWidth,minHeight));
+			return new SizeRequest(new Size(width, height), new Size(minWidth, minHeight));
 		}
 
 		/// <summary>
@@ -203,8 +207,6 @@ namespace Xamarin.Forms
 					var request = child.GetSizeRequest (width, height);
 
 					double childWidth = request.Request.Width;
-					double childHeight = request.Request.Height;
-					rowHeight = Math.Max(rowHeight, childHeight);
 
 					if (xPos + childWidth > width) {
 						xPos = x;
@@ -212,11 +214,13 @@ namespace Xamarin.Forms
 						rowHeight = 0;
 					}
 
+					double childHeight = request.Request.Height;
+					rowHeight = Math.Max(rowHeight, childHeight);
+
 					var region = new Rectangle (xPos, yPos, childWidth, childHeight);
 					LayoutChildIntoBoundingRegion (child, region);
 					xPos += region.Width + Spacing;
 				}
-
 			}
 		}
 	}
